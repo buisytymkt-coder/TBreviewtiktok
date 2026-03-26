@@ -1,0 +1,36 @@
+name: TikTok Review Monitor
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+jobs:
+  check-reviews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install playwright
+      - name: Install Chromium
+        run: playwright install chromium && playwright install-deps chromium
+      - name: Restore state
+        uses: actions/cache@v4
+        with:
+          path: state.json
+          key: review-state-${{ github.run_number }}
+          restore-keys: review-state-
+      - name: Run scraper
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          TIKTOK_COOKIES:     ${{ secrets.TIKTOK_COOKIES }}
+        run: python scraper.py
+      - name: Save state
+        uses: actions/cache@v4
+        if: always()
+        with:
+          path: state.json
+          key: review-state-${{ github.run_number }}
