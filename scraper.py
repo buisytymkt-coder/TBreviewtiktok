@@ -48,25 +48,59 @@ def build_message(review):
 async def scrape_reviews():
     reviews = []
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+            ]
+        )
         context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             viewport={"width": 1440, "height": 900},
+            locale="en-US",
         )
         if TIKTOK_COOKIES_JSON:
             cookies = json.loads(TIKTOK_COOKIES_JSON)
             await context.add_cookies(cookies)
             print(f"Injected {len(cookies)} cookies")
+
         page = await context.new_page()
-        await page.goto(TIKTOK_RATINGS_URL, wait_until="networkidle", timeout=60000)
-        await page.wait_for_timeout(3000)
-        if "login" in page.url.lower():
+
+        # Tăng timeout lên 120s, đổi wait_until sang domcontentloaded (nhanh hơn networkidle)
+        print(f"Navigating to TikTok Seller Center...")
+        try:
+            await page.goto(TIKTOK_RATINGS_URL, wait_until="domcontentloaded", timeout=120000)
+        except Exception as e:
+            print(f"Goto error: {e}")
+            await browser.close()
+            return []
+
+        # Chờ thêm để JS load xong
+        await page.wait_for_timeout(8000)
+
+        current_url = page.url
+        print(f"Current URL: {current_url}")
+
+        if "login" in current_url.lower() or "passport" in current_url.lower():
             print("Not logged in — cookies expired")
             await browser.close()
             return []
+
         print("Logged in OK")
+
+        # Chờ bảng review xuất hiện
+        try:
+            await page.wait_for_selector("table tbody tr", timeout=20000)
+        except Exception:
+            print("Table not found — TikTok may have changed layout")
+            await browser.close()
+            return []
+
         rows = await page.query_selector_all("table tbody tr")
         print(f"Found {len(rows)} rows")
+
         for row in rows:
             try:
                 star_els = await row.query_selector_all("[class*='filled']")
