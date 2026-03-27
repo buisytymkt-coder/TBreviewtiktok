@@ -9,6 +9,11 @@ TIKTOK_COOKIES_JSON = os.environ.get("TIKTOK_COOKIES", "")
 STATE_FILE = Path("state.json")
 TIKTOK_RATINGS_URL = "https://seller-us.tiktok.com/product/rating?shop_region=US"
 
+# Selectors từ TikTok Seller Center thực tế
+CONTAINER_SELECTOR = "#core-tabs-0-panel-0 > div > div > div:nth-child(4) > div.ratingListContainer-zqOVEf > div.ratingListMain-Njrazc > div.ratingListMainLists-J46EQM"
+ITEM_SELECTOR = CONTAINER_SELECTOR + " > div"
+ORDER_ID_SELECTOR = "div.productItem-CxPWQF > div > div.productItemInfoOrderId-NuCP_U > div"
+
 def load_state():
     if STATE_FILE.exists():
         return json.loads(STATE_FILE.read_text())
@@ -45,10 +50,17 @@ def build_message(review):
         f"👉 <a href='{TIKTOK_RATINGS_URL}'>Reply ngay trên Seller Center</a>"
     )
 
+async def get_text(el, selector):
+    try:
+        found = await el.query_selector(selector)
+        if found:
+            return (await found.inner_text()).strip()
+    except:
+        pass
+    return ""
+
 async def scrape_reviews():
     reviews = []
-    api_responses = []
-
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
@@ -65,19 +77,6 @@ async def scrape_reviews():
             print(f"Injected {len(cookies)} cookies")
 
         page = await context.new_page()
-
-        # Intercept ALL responses để tìm API review
-        async def handle_response(response):
-            url = response.url
-            print(f"RESP: {url[:100]}")
-            try:
-                body = await response.json()
-                api_responses.append({"url": url, "data": body})
-            except:
-                pass
-
-        page.on("response", handle_response)
-
         print("Navigating...")
         try:
             await page.goto(TIKTOK_RATINGS_URL, wait_until="domcontentloaded", timeout=120000)
@@ -86,26 +85,119 @@ async def scrape_reviews():
             await browser.close()
             return []
 
-        print("Waiting 15s for all API calls...")
-        await page.wait_for_timeout(15000)
-        await page.evaluate("window.scrollTo(0, 800)")
-        await page.wait_for_timeout(3000)
+        await page.wait_for_timeout(12000)
 
-        print(f"Total responses captured: {len(api_responses)}")
-        for r in api_responses:
-            print(f"API URL: {r['url'][:120]}")
+        current_url = page.url
+        print(f"URL: {current_url}")
+        if "login" in current_url.lower() or "passport" in current_url.lower():
+            print("Not logged in!")
+            await browser.close()
+            return []
+        print("Logged in OK")
+
+        # Chờ container review xuất hiện
+        try:
+            await page.wait_for_selector(CONTAINER_SELECTOR, timeout=20000)
+            print("Container found!")
+        except Exception as e:
+            print(f"Container not found: {e}")
+            # Thử selector đơn giản hơn
+            try:
+                await page.wait_for_selector("[class*='ratingListMainLists']", timeout=10000)
+                print("Found via class selector!")
+            except:
+                print("No container found at all")
+                await browser.close()
+                return []
+
+        # Lấy tất cả review items
+        items = await page.query_selector_all(ITEM_SELECTOR)
+        if not items:
+            # Thử selector đơn giản hơn
+            items = await page.query_selector_all("[class*='ratingListMainLists'] > div")
+        print(f"Found {len(items)} review items")
+
+        for i, item in enumerate(items):
+            try:
+                # Lấy Order ID
+                order_id_el = await item.query_selector(ORDER_ID_SELECTOR)
+                if not order_id_el:
+                    order_id_el = await item.query_selector("[class*='OrderId'] div, [class*='orderId'] div")
+                order_id = (await order_id_el.inner_text()).strip() if order_id_el else f"item_{i}"
+                print(f"Item {i}: Order ID = {order_id}")
+
+                # Lấy rating — đếm số sao vàng
+                filled_stars = await item.query_selector_all("[class*='starIcon'] svg[color='#FFC200'], [class*='filled'], [fill='#FFC200']")
+                rating = len(filled_stars)
+
+                # Thử cách khác nếu không tìm được stars
+                if rating == 0:
+                    all_stars = await item.query_selector_all("[class*='star'], [class*='Star']")
+                    rating_text = await get_text(item, "[aria-label*='star'], [title*='star'], [class*='ratingScore']")
+                    if rating_text and rating_text.isdigit():
+                        rating = int(rating_text)
+                    else:
+                        rating = len(all_stars) if all_stars else 0
+
+                print(f"  Rating: {rating}")
+
+                # Chỉ lấy 1★ 2★ 3★
+                if rating == 0 or rating >= 4:
+                    continue
+
+                # Lấy review text
+                text = await get_text(item, "[class*='reviewContent'], [class*='ReviewContent'], [class*='ratingContent']")
+                if not text:
+                    text = await get_text(item, "p, [class*='content']")
+
+                # Lấy username
+                username = await get_text(item, "[class*='username'], [class*='UserName'], [class*='buyerName']")
+
+                # Lấy product name
+                product = await get_text(item, "[class*='productName'], [class*='ProductName'], [class*='skuName']")
+
+                # Lấy date
+                date = await get_text(item, "[class*='date'], [class*='Date'], time")
+
+                reviews.append({
+                    "order_id": order_id,
+                    "rating": rating,
+                    "type": "negative" if rating <= 2 else "neutral",
+                    "text": text[:300] if text else "",
+                    "date": date,
+                    "username": username or "Unknown",
+                    "product": product[:80] if product else "Unknown",
+                })
+                print(f"  ✅ Added review: {rating}★ — {text[:50]}")
+
+            except Exception as e:
+                print(f"Item {i} error: {e}")
 
         await browser.close()
-
+    print(f"Total scraped: {len(reviews)}")
     return reviews
 
 async def run_once():
     print(f"\n--- Run at {datetime.now().strftime('%H:%M:%S')} ---")
-    await scrape_reviews()
+    state = load_state()
+    seen_ids = set(state.get("seen_order_ids", []))
+    reviews = await scrape_reviews()
+    new_reviews = [r for r in reviews if r["order_id"] not in seen_ids]
+    print(f"New reviews to notify: {len(new_reviews)}")
+    for review in new_reviews:
+        await send_telegram(build_message(review))
+        seen_ids.add(review["order_id"])
+    if not new_reviews:
+        print("No new negative/neutral reviews")
+    save_state({"seen_order_ids": list(seen_ids), "last_run": datetime.now().isoformat()})
 
 async def main():
-    print(f"TikTok Review Monitor v3 — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    await run_once()
+    print(f"TikTok Review Monitor v4 — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    for i in range(5):
+        await run_once()
+        if i < 4:
+            print("Waiting 3 minutes...")
+            await asyncio.sleep(180)
 
 if __name__ == "__main__":
     asyncio.run(main())
