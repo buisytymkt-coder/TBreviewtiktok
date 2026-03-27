@@ -47,10 +47,12 @@ def build_message(review):
 
 async def scrape_reviews():
     reviews = []
+    api_responses = []
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
-            args=["--no-sandbox", "--disable-blink-features=AutomationControlled", "--disable-dev-shm-usage"]
+            args=["--no-sandbox", "--disable-dev-shm-usage"]
         )
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -63,6 +65,21 @@ async def scrape_reviews():
             print(f"Injected {len(cookies)} cookies")
 
         page = await context.new_page()
+
+        # Intercept tất cả network responses để tìm API review
+        async def handle_response(response):
+            url = response.url
+            # Tìm các API call liên quan đến review/rating
+            if any(k in url.lower() for k in ["review", "rating", "comment", "feedback"]):
+                print(f"API found: {url[:120]}")
+                try:
+                    body = await response.json()
+                    api_responses.append({"url": url, "data": body})
+                except:
+                    pass
+
+        page.on("response", handle_response)
+
         print("Navigating...")
         try:
             await page.goto(TIKTOK_RATINGS_URL, wait_until="domcontentloaded", timeout=120000)
@@ -71,105 +88,82 @@ async def scrape_reviews():
             await browser.close()
             return []
 
-        # Chờ JS render xong — tăng lên 15 giây
-        print("Waiting for JS to render...")
+        # Chờ page load và API calls hoàn thành
+        print("Waiting for API calls...")
         await page.wait_for_timeout(15000)
 
-        current_url = page.url
-        print(f"Current URL: {current_url}")
+        # Scroll để trigger thêm data load
+        await page.evaluate("window.scrollTo(0, 800)")
+        await page.wait_for_timeout(5000)
 
-        if "login" in current_url.lower() or "passport" in current_url.lower():
-            print("Not logged in — cookies expired")
-            await browser.close()
-            return []
+        print(f"Total API responses captured: {len(api_responses)}")
 
-        print("Logged in OK")
+        # Parse data từ API responses
+        for resp in api_responses:
+            url = resp["url"]
+            data = resp["data"]
+            print(f"Parsing: {url[:80]}")
+            print(f"Keys: {list(data.keys()) if isinstance(data, dict) else 'list'}")
 
-        # Thử scroll để trigger lazy load
-        await page.evaluate("window.scrollTo(0, 500)")
-        await page.wait_for_timeout(3000)
-
-        # Dump tất cả class names để tìm đúng selector
-        all_classes = await page.evaluate("""
-            () => {
-                const els = document.querySelectorAll('*');
-                const classes = new Set();
-                els.forEach(el => {
-                    el.classList.forEach(c => {
-                        if (c.length > 3 && c.length < 50) classes.add(c);
-                    });
-                });
-                return Array.from(classes).slice(0, 200);
-            }
-        """)
-        print(f"Classes found: {[c for c in all_classes if any(k in c.lower() for k in ['review', 'rating', 'star', 'table', 'row', 'item', 'list'])]}")
-
-        # Thử tìm rows bằng nhiều cách
-        selectors = [
-            "table tbody tr",
-            "tr[class]",
-            "[class*='review']",
-            "[class*='Review']",
-            "[class*='rating']",
-            "[class*='Rating']",
-            "[class*='RatingTable']",
-            "[class*='TableRow']",
-            "[class*='tableRow']",
-            "[class*='row']",
-        ]
-
-        rows = []
-        used_selector = ""
-        for sel in selectors:
-            rows = await page.query_selector_all(sel)
-            if rows:
-                print(f"✅ Found {len(rows)} elements with: {sel}")
-                used_selector = sel
-                break
-            else:
-                print(f"❌ No match: {sel}")
-
-        if not rows:
-            # Lưu screenshot để debug
-            print("No rows found at all!")
-            await browser.close()
-            return []
-
-        print(f"Processing {len(rows)} rows...")
-        for i, row in enumerate(rows[:20]):  # Chỉ xử lý 20 rows đầu
             try:
-                row_text = await row.inner_text()
-                print(f"Row {i}: {row_text[:150]}")
+                # TikTok API thường trả về dạng {"data": {"list": [...]}}
+                items = []
+                if isinstance(data, dict):
+                    # Thử các path phổ biến
+                    for path in [
+                        data.get("data", {}).get("list", []),
+                        data.get("data", {}).get("reviews", []),
+                        data.get("data", {}).get("items", []),
+                        data.get("list", []),
+                        data.get("reviews", []),
+                    ]:
+                        if path:
+                            items = path
+                            break
 
-                # Tìm rating từ aria-label hoặc title của stars
-                rating = 0
-                star_filled = await row.query_selector_all("[class*='filled'], [class*='active'], [aria-label*='star'], [title*='star']")
-                if star_filled:
-                    rating = len(star_filled)
-                else:
-                    # Thử đọc từ text — vd "3 out of 5"
-                    import re
-                    match = re.search(r'(\d)\s*(?:out of\s*5|/\s*5|\s*star)', row_text.lower())
-                    if match:
-                        rating = int(match.group(1))
+                print(f"Items found: {len(items)}")
 
-                print(f"  → Rating: {rating}")
-                if rating == 0 or rating >= 4:
-                    continue
+                for item in items:
+                    print(f"Item keys: {list(item.keys()) if isinstance(item, dict) else str(item)[:100]}")
 
-                reviews.append({
-                    "order_id": f"row_{i}_{hash(row_text[:50])}",
-                    "rating": rating,
-                    "type": "negative" if rating <= 2 else "neutral",
-                    "text": row_text[:300],
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                    "username": "Unknown",
-                    "product": "Unknown",
-                })
+                    # Lấy rating
+                    rating = item.get("star", item.get("rating", item.get("score", 0)))
+                    if isinstance(rating, str):
+                        try:
+                            rating = int(rating)
+                        except:
+                            rating = 0
+
+                    if rating == 0 or rating >= 4:
+                        continue
+
+                    # Lấy các field khác
+                    order_id = str(item.get("order_id", item.get("orderId", item.get("id", f"api_{len(reviews)}"))))
+                    text = item.get("content", item.get("comment", item.get("review_content", item.get("text", ""))))
+                    username = item.get("buyer_name", item.get("username", item.get("user_name", item.get("nickname", "Unknown"))))
+                    product = item.get("product_name", item.get("productName", item.get("sku_name", "Unknown")))
+                    date = item.get("create_time", item.get("createTime", item.get("date", "")))
+
+                    if isinstance(date, (int, float)):
+                        from datetime import datetime as dt
+                        date = dt.fromtimestamp(date).strftime("%Y-%m-%d")
+
+                    reviews.append({
+                        "order_id": order_id,
+                        "rating": rating,
+                        "type": "negative" if rating <= 2 else "neutral",
+                        "text": str(text)[:300],
+                        "date": str(date),
+                        "username": str(username),
+                        "product": str(product)[:80],
+                    })
+
             except Exception as e:
-                print(f"Row {i} error: {e}")
+                print(f"Parse error: {e}")
 
         await browser.close()
+
+    print(f"Total reviews scraped: {len(reviews)}")
     return reviews
 
 async def run_once():
