@@ -50,11 +50,7 @@ async def scrape_reviews():
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-blink-features=AutomationControlled",
-                "--disable-dev-shm-usage",
-            ]
+            args=["--no-sandbox", "--disable-blink-features=AutomationControlled", "--disable-dev-shm-usage"]
         )
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -67,7 +63,7 @@ async def scrape_reviews():
             print(f"Injected {len(cookies)} cookies")
 
         page = await context.new_page()
-        print(f"Navigating...")
+        print("Navigating...")
         try:
             await page.goto(TIKTOK_RATINGS_URL, wait_until="domcontentloaded", timeout=120000)
         except Exception as e:
@@ -75,7 +71,10 @@ async def scrape_reviews():
             await browser.close()
             return []
 
-        await page.wait_for_timeout(8000)
+        # Chờ JS render xong — tăng lên 15 giây
+        print("Waiting for JS to render...")
+        await page.wait_for_timeout(15000)
+
         current_url = page.url
         print(f"Current URL: {current_url}")
 
@@ -86,78 +85,90 @@ async def scrape_reviews():
 
         print("Logged in OK")
 
-        # Debug: in ra HTML để xem cấu trúc thực tế
-        content = await page.content()
-        print(f"Page content length: {len(content)}")
+        # Thử scroll để trigger lazy load
+        await page.evaluate("window.scrollTo(0, 500)")
+        await page.wait_for_timeout(3000)
 
-        # Thử nhiều selector khác nhau
+        # Dump tất cả class names để tìm đúng selector
+        all_classes = await page.evaluate("""
+            () => {
+                const els = document.querySelectorAll('*');
+                const classes = new Set();
+                els.forEach(el => {
+                    el.classList.forEach(c => {
+                        if (c.length > 3 && c.length < 50) classes.add(c);
+                    });
+                });
+                return Array.from(classes).slice(0, 200);
+            }
+        """)
+        print(f"Classes found: {[c for c in all_classes if any(k in c.lower() for k in ['review', 'rating', 'star', 'table', 'row', 'item', 'list'])]}")
+
+        # Thử tìm rows bằng nhiều cách
         selectors = [
             "table tbody tr",
-            "[class*='ReviewTable'] tr",
-            "[class*='review-list'] [class*='item']",
-            "[class*='ReviewItem']",
-            "[data-testid*='review']",
+            "tr[class]",
+            "[class*='review']",
+            "[class*='Review']",
+            "[class*='rating']",
+            "[class*='Rating']",
+            "[class*='RatingTable']",
+            "[class*='TableRow']",
+            "[class*='tableRow']",
+            "[class*='row']",
         ]
 
         rows = []
+        used_selector = ""
         for sel in selectors:
             rows = await page.query_selector_all(sel)
             if rows:
-                print(f"Found {len(rows)} rows with selector: {sel}")
+                print(f"✅ Found {len(rows)} elements with: {sel}")
+                used_selector = sel
                 break
             else:
-                print(f"No rows with selector: {sel}")
+                print(f"❌ No match: {sel}")
 
         if not rows:
-            print("No rows found — dumping page structure for debug")
-            # In ra 2000 ký tự đầu của HTML để debug
-            print(content[:2000])
+            # Lưu screenshot để debug
+            print("No rows found at all!")
             await browser.close()
             return []
 
-        for row in rows:
+        print(f"Processing {len(rows)} rows...")
+        for i, row in enumerate(rows[:20]):  # Chỉ xử lý 20 rows đầu
             try:
-                # Đếm số sao
-                all_svgs = await row.query_selector_all("svg")
-                filled_stars = await row.query_selector_all("[class*='filled'], [class*='active'], [fill='#FFC200'], [fill='#ffc200']")
-                rating = len(filled_stars) if filled_stars else 0
+                row_text = await row.inner_text()
+                print(f"Row {i}: {row_text[:150]}")
 
-                print(f"Row rating: {rating}, svgs: {len(all_svgs)}, filled: {len(filled_stars)}")
+                # Tìm rating từ aria-label hoặc title của stars
+                rating = 0
+                star_filled = await row.query_selector_all("[class*='filled'], [class*='active'], [aria-label*='star'], [title*='star']")
+                if star_filled:
+                    rating = len(star_filled)
+                else:
+                    # Thử đọc từ text — vd "3 out of 5"
+                    import re
+                    match = re.search(r'(\d)\s*(?:out of\s*5|/\s*5|\s*star)', row_text.lower())
+                    if match:
+                        rating = int(match.group(1))
 
+                print(f"  → Rating: {rating}")
                 if rating == 0 or rating >= 4:
                     continue
 
-                # Lấy toàn bộ text của row để debug
-                row_text = await row.inner_text()
-                print(f"Row text: {row_text[:200]}")
-
-                text_el = await row.query_selector("td:nth-child(1) p, [class*='content'], [class*='Content']")
-                text = (await text_el.inner_text()).strip() if text_el else row_text[:200]
-
-                date_el = await row.query_selector("time, [class*='date'], [class*='Date']")
-                date = (await date_el.inner_text()).strip() if date_el else ""
-
-                user_el = await row.query_selector("[class*='username'], [class*='UserName'], [class*='user']")
-                username = (await user_el.inner_text()).strip() if user_el else "Unknown"
-
-                order_el = await row.query_selector("[class*='order'], [class*='Order']")
-                order_text = (await order_el.inner_text()).strip() if order_el else ""
-                order_id = order_text.split("Order ID:")[-1].split("\n")[0].strip() if "Order ID:" in order_text else f"row_{len(reviews)}"
-
-                product_el = await row.query_selector("[class*='product'], [class*='Product']")
-                product = (await product_el.inner_text()).strip() if product_el else "Unknown"
-
                 reviews.append({
-                    "order_id": order_id,
+                    "order_id": f"row_{i}_{hash(row_text[:50])}",
                     "rating": rating,
                     "type": "negative" if rating <= 2 else "neutral",
-                    "text": text[:300],
-                    "date": date,
-                    "username": username,
-                    "product": product[:80],
+                    "text": row_text[:300],
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "username": "Unknown",
+                    "product": "Unknown",
                 })
             except Exception as e:
-                print(f"Row error: {e}")
+                print(f"Row {i} error: {e}")
+
         await browser.close()
     return reviews
 
@@ -167,7 +178,7 @@ async def run_once():
     seen_ids = set(state.get("seen_order_ids", []))
     reviews = await scrape_reviews()
     new_reviews = [r for r in reviews if r["order_id"] not in seen_ids]
-    print(f"New reviews: {len(new_reviews)}")
+    print(f"New reviews to notify: {len(new_reviews)}")
     for review in new_reviews:
         await send_telegram(build_message(review))
         seen_ids.add(review["order_id"])
@@ -176,13 +187,12 @@ async def run_once():
     save_state({"seen_order_ids": list(seen_ids), "last_run": datetime.now().isoformat()})
 
 async def main():
-    print(f"TikTok Review Monitor started — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    # Chạy 5 lần, mỗi lần cách nhau 3 phút → check mỗi 3 phút trong 1 job
+    print(f"TikTok Review Monitor — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     for i in range(5):
         await run_once()
         if i < 4:
-            print(f"Waiting 3 minutes before next check...")
-            await asyncio.sleep(180)  # 3 phút
+            print("Waiting 3 minutes...")
+            await asyncio.sleep(180)
 
 if __name__ == "__main__":
     asyncio.run(main())
