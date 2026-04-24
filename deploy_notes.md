@@ -43,6 +43,11 @@ php -S 0.0.0.0:${PORT}
 ```
 
 - App sẽ lắng nghe tại: `PORT` từ môi trường, mặc định `3000`.
+- Có sẵn script:
+```bash
+chmod +x start.sh
+PORT=3000 ./start.sh
+```
 
 ## 4) Cron worker (email waitlist)
 
