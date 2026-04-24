@@ -99,6 +99,7 @@ function findOrderByInvoice(SQLite3 $db, string $invoice): ?array
     }
     $stmt = $db->prepare(
         'SELECT o.*, c.name AS customer_name, c.phone AS customer_contact
+        , c.email AS customer_email
          FROM orders o
          LEFT JOIN customers c ON c.id = o.customer_id
          WHERE o.invoice_number = :invoice
@@ -108,6 +109,40 @@ function findOrderByInvoice(SQLite3 $db, string $invoice): ?array
     $res = $stmt->execute();
     $row = $res ? $res->fetchArray(SQLITE3_ASSOC) : false;
     return $row ?: null;
+}
+
+function buildCheckoutHtmlForOrder(
+    SePayClient $sepay,
+    string $environment,
+    array $order,
+    string $currentScriptUrl
+): string {
+    $invoiceNumber = trim((string)($order['invoice_number'] ?? ''));
+    $amount = (int)round((float)($order['amount'] ?? 0));
+    $itemName = trim((string)($order['product_name'] ?? 'Tinh Dầu Tràm Chăm Chăm'));
+    $customerName = trim((string)($order['customer_name'] ?? 'Khách hàng'));
+    $customerContact = trim((string)($order['customer_contact'] ?? ''));
+    $customerEmail = trim((string)($order['customer_email'] ?? ''));
+
+    if ($invoiceNumber === '' || $amount < 2000) {
+        throw new RuntimeException('Thiếu invoice hoặc số tiền không hợp lệ để tạo checkout.');
+    }
+
+    $description = 'Thanh toán ' . $itemName . ' | ' . $customerName . ' | ' . $customerContact . ($customerEmail !== '' ? (' | ' . $customerEmail) : '');
+
+    $checkoutData = CheckoutBuilder::make()
+        ->paymentMethod('BANK_TRANSFER')
+        ->currency('VND')
+        ->orderInvoiceNumber($invoiceNumber)
+        ->orderAmount($amount)
+        ->operation('PURCHASE')
+        ->orderDescription($description)
+        ->successUrl($currentScriptUrl . '?payment=success&invoice=' . urlencode($invoiceNumber))
+        ->errorUrl($currentScriptUrl . '?payment=error&invoice=' . urlencode($invoiceNumber))
+        ->cancelUrl($currentScriptUrl . '?payment=cancel&invoice=' . urlencode($invoiceNumber))
+        ->build();
+
+    return buildEmbeddedCheckoutHtml($sepay, $checkoutData, $environment);
 }
 
 function upsertCustomer(SQLite3 $db, string $name, string $contact, string $email = ''): int
@@ -207,6 +242,7 @@ $invoiceFromQuery = trim((string)($_GET['invoice'] ?? ''));
 $errorMessage = '';
 $checkoutHtml = '';
 $currentOrder = $invoiceFromQuery !== '' ? findOrderByInvoice($db, $invoiceFromQuery) : null;
+$resumeCheckout = ($_GET['resume'] ?? '') === '1';
 
 // Reviewer mo link thanh toan thi thay QR ngay.
 $autoCreateOnOpen = (
@@ -271,6 +307,23 @@ if ($submitted) {
             }
             $errorMessage = 'Lỗi tạo đơn hàng/thanh toán: ' . $e->getMessage();
         }
+    }
+}
+
+if (
+    $checkoutHtml === '' &&
+    $resumeCheckout &&
+    $currentOrder &&
+    in_array((string)$currentOrder['status'], ['pending', 'failed'], true) &&
+    $merchantId !== '' &&
+    $secretKey !== ''
+) {
+    try {
+        $sepay = new SePayClient($merchantId, $secretKey, $environment);
+        $currentScriptUrl = getCurrentScriptUrl();
+        $checkoutHtml = buildCheckoutHtmlForOrder($sepay, $environment, $currentOrder, $currentScriptUrl);
+    } catch (Throwable $e) {
+        $errorMessage = 'Lỗi tạo lại checkout: ' . $e->getMessage();
     }
 }
 ?>
