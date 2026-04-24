@@ -14,10 +14,19 @@ npm install
 node src/index.js
 ```
 
+## Chay Streamable HTTP endpoint
+```bash
+cd mcp-server
+npm install
+MCP_HTTP_PORT=3010 node src/http.js
+```
+Endpoint: `POST /mcp`
+
 ## Bien moi truong
 - `BRAIN_DB_PATH` (optional): duong dan `brain.db` (mac dinh: `../brain.db`)
 - `WEBSITE_BASE_URL` (optional): domain website (mac dinh: `https://shop.jocohome.shop`)
 - `CHECKOUT_PATH` (optional): duong dan checkout (mac dinh: `/sepay_checkout.php`)
+- `MCP_HTTP_PORT` (optional): cong cho MCP HTTP (mac dinh: `3010`)
 
 ## Goi y cau hinh trong GoClaw (MCP server - stdio)
 - Command: `node`
