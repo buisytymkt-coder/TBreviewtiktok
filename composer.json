@@ -1,0 +1,7 @@
+{
+    "name": "chamcham/website",
+    "type": "project",
+    "require": {
+        "sepay/sepay-pg": "^1.0"
+    }
+}

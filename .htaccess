@@ -1,0 +1,15 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+</IfModule>
+
+# Block sensitive files
+<FilesMatch "^(\.env|\.git|brain\.db|brain\.db-shm|brain\.db-wal|resend_config\.txt|composer\.json|composer\.lock)$">
+  Require all denied
+</FilesMatch>
+
+# Block archive/log exposure
+<FilesMatch "\.(zip|sql|sqlite|sqlite3|log)$">
+  Require all denied
+</FilesMatch>

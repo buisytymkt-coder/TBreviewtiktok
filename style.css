@@ -1083,6 +1083,297 @@ ul {
     opacity: 0.9;
 }
 
+/* === SURVEY SECTION === */
+.survey-section {
+    padding: var(--section-padding) 0;
+    background: var(--white);
+    position: relative;
+    overflow: hidden;
+}
+
+.survey-bg-shapes {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.survey-shape {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.06;
+}
+
+.survey-shape-1 {
+    width: 400px;
+    height: 400px;
+    background: var(--brand-primary);
+    top: -120px;
+    left: -120px;
+    animation: floatCircle 18s ease-in-out infinite;
+}
+
+.survey-shape-2 {
+    width: 250px;
+    height: 250px;
+    background: var(--brand-accent);
+    bottom: -80px;
+    right: -60px;
+    animation: floatCircle 14s ease-in-out infinite reverse;
+}
+
+.survey-shape-3 {
+    width: 150px;
+    height: 150px;
+    background: var(--brand-primary-light);
+    top: 40%;
+    right: 10%;
+    animation: floatCircle 16s ease-in-out infinite 2s;
+}
+
+.survey-header-desc {
+    color: var(--gray-500);
+    font-size: 17px;
+    line-height: 1.7;
+    margin-top: 8px;
+}
+
+.survey-form-wrapper {
+    max-width: 680px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+}
+
+.survey-form-card {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    padding: 48px 40px;
+    box-shadow: 0 20px 60px rgba(26, 122, 58, 0.1), 0 4px 20px rgba(0,0,0,0.06);
+    border: 1px solid var(--green-100);
+    position: relative;
+    overflow: hidden;
+}
+
+
+/* Progress Bar */
+.survey-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--gray-100);
+}
+
+.survey-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--brand-primary), var(--brand-primary-light), var(--brand-accent));
+    border-radius: 0 4px 4px 0;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Survey Form Groups */
+.survey-form-group {
+    margin-bottom: 28px;
+}
+
+.survey-form-group > label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--gray-800);
+    margin-bottom: 10px;
+}
+
+.survey-group-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--gray-800);
+    margin-bottom: 14px;
+}
+
+.survey-label-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light));
+    color: var(--white);
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* Text Inputs */
+.survey-form-group input[type="text"],
+.survey-form-group input[type="tel"],
+.survey-form-group input[type="email"] {
+    width: 100%;
+    padding: 16px 20px;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--border-radius-sm);
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--gray-800);
+    transition: all 0.3s ease;
+    background: var(--gray-50);
+}
+
+.survey-form-group input[type="text"]:focus,
+.survey-form-group input[type="tel"]:focus,
+.survey-form-group input[type="email"]:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+    background: var(--white);
+    box-shadow: 0 0 0 4px rgba(26, 122, 58, 0.1);
+}
+
+.survey-form-group input[type="text"]::placeholder,
+.survey-form-group input[type="tel"]::placeholder,
+.survey-form-group input[type="email"]::placeholder {
+    color: var(--gray-400);
+}
+
+/* Radio Options */
+.survey-radio-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.survey-radio-label {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--gray-50);
+    position: relative;
+}
+
+.survey-radio-label:hover {
+    border-color: var(--green-300);
+    background: var(--green-50);
+    transform: translateX(4px);
+}
+
+.survey-radio-label input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.survey-radio-custom {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--gray-300);
+    flex-shrink: 0;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.survey-radio-custom::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--white);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.survey-radio-label input[type="radio"]:checked ~ .survey-radio-custom {
+    border-color: var(--brand-primary);
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light));
+    box-shadow: 0 2px 8px rgba(26, 122, 58, 0.3);
+}
+
+.survey-radio-label input[type="radio"]:checked ~ .survey-radio-custom::after {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.survey-radio-label input[type="radio"]:checked ~ .survey-radio-text {
+    color: var(--brand-primary);
+    font-weight: 600;
+}
+
+.survey-radio-label.is-checked {
+    border-color: var(--brand-primary);
+    background: var(--green-50);
+    box-shadow: 0 2px 12px rgba(26, 122, 58, 0.1);
+}
+
+.survey-radio-text {
+    font-size: 15px;
+    color: var(--gray-600);
+    transition: all 0.3s ease;
+    line-height: 1.4;
+}
+
+/* Submit Button */
+.survey-submit-btn {
+    margin-top: 8px;
+    font-size: 16px;
+    padding: 18px 40px;
+    animation: btnGlow 2.5s ease-in-out infinite;
+}
+
+.survey-form-note {
+    text-align: center;
+    font-size: 13px;
+    color: var(--gray-400);
+    margin-top: 16px;
+}
+
+/* Success State */
+.survey-success {
+    text-align: center;
+    padding: 40px 20px;
+    animation: fadeInUp 0.6s ease;
+}
+
+.survey-success-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bounceIn {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.survey-success h3 {
+    font-family: var(--font-heading);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--brand-primary);
+    margin-bottom: 10px;
+}
+
+.survey-success p {
+    color: var(--gray-500);
+    font-size: 16px;
+    line-height: 1.6;
+}
+
 /* === ORDER SECTION === */
 .order-section {
     padding: var(--section-padding) 0 60px;
@@ -1274,6 +1565,10 @@ ul {
     margin-top: 16px;
 }
 
+#pay-with-sepay {
+    margin-top: 12px;
+}
+
 /* === FOOTER === */
 .footer {
     background: var(--gray-900);
@@ -1333,6 +1628,7 @@ ul {
     left: 0;
     width: 100%;
     padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
     background: var(--white);
     box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
     z-index: 999;
@@ -1344,6 +1640,208 @@ ul {
 .floating-cta.visible {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* === CHATBOT === */
+.chatbot-widget {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1100;
+}
+
+.chatbot-toggle {
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light));
+    color: var(--white);
+    box-shadow: var(--shadow-green);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.chatbot-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(26, 122, 58, 0.35);
+}
+
+.chatbot-toggle-icon {
+    font-size: 16px;
+}
+
+.chatbot-window {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 12px);
+    width: min(380px, calc(100vw - 24px));
+    background: var(--white);
+    border-radius: 18px;
+    border: 1px solid var(--green-200);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.chatbot-widget.open .chatbot-window {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.chatbot-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, var(--green-50), var(--white));
+    border-bottom: 1px solid var(--green-100);
+}
+
+.chatbot-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.chatbot-title-wrap strong {
+    color: var(--brand-primary);
+    font-size: 14px;
+}
+
+.chatbot-title-wrap span {
+    color: var(--gray-500);
+    font-size: 12px;
+}
+
+.chatbot-close {
+    border: none;
+    background: transparent;
+    color: var(--gray-500);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.chatbot-messages {
+    height: 300px;
+    overflow-y: auto;
+    background: linear-gradient(180deg, #fcfffd 0%, #f6faf7 100%);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.chatbot-message {
+    max-width: 90%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.45;
+    white-space: pre-line;
+}
+
+.chatbot-message.bot {
+    align-self: flex-start;
+    background: var(--white);
+    border: 1px solid var(--green-200);
+    color: var(--gray-700);
+}
+
+.chatbot-message.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light));
+    color: var(--white);
+}
+
+.chatbot-quick-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--gray-100);
+    background: var(--white);
+}
+
+.chatbot-quick-btn {
+    border: 1px solid var(--green-200);
+    background: var(--green-50);
+    color: var(--brand-primary);
+    border-radius: 999px;
+    font-size: 12px;
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chatbot-quick-btn:hover {
+    background: var(--green-100);
+}
+
+.chatbot-actions {
+    padding: 8px 12px 0;
+    background: var(--white);
+}
+
+.chatbot-waitlist-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--brand-accent), var(--brand-accent-light));
+    color: var(--gray-900);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.chatbot-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid var(--gray-100);
+    background: var(--white);
+}
+
+.chatbot-form input {
+    border: 1px solid var(--gray-300);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--gray-800);
+    background: var(--gray-50);
+}
+
+.chatbot-form input:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(26, 122, 58, 0.12);
+}
+
+.chatbot-send {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: var(--brand-primary);
+    color: var(--white);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
 }
 
 /* === SCROLL ANIMATIONS === */
@@ -1479,10 +1977,17 @@ ul {
 
     .hero-stats {
         justify-content: center;
+        flex-wrap: wrap;
     }
 
     .hero-actions {
         justify-content: center;
+        gap: 12px;
+    }
+    
+    .hero-actions .btn {
+        width: 100%;
+        max-width: 320px;
     }
 
     .hero-image {
@@ -1574,6 +2079,16 @@ ul {
         text-align: left;
     }
 
+    /* Survey */
+    .survey-form-card {
+        padding: 36px 24px;
+    }
+
+
+    .survey-radio-label {
+        padding: 12px 14px;
+    }
+
     /* Order */
     .pricing-cards {
         flex-direction: column;
@@ -1589,31 +2104,67 @@ ul {
     .floating-cta {
         display: block;
     }
+
+    /* Chatbot */
+    .chatbot-widget {
+        right: 12px;
+        bottom: max(12px, env(safe-area-inset-bottom));
+    }
+
+    .chatbot-toggle-text {
+        display: none;
+    }
+
+    .chatbot-toggle {
+        width: 52px;
+        height: 52px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .chatbot-window {
+        width: min(360px, calc(100vw - 24px));
+    }
 }
 
 @media (max-width: 480px) {
+    :root {
+        --section-padding: 50px;
+    }
+
     .hero-title {
-        font-size: 26px;
+        font-size: 28px;
+    }
+
+    .hero-subtitle {
+        font-size: 15px;
+        margin-bottom: 24px;
+        line-height: 1.5;
     }
 
     .hero-stats {
         flex-direction: column;
-        gap: 12px;
+        gap: 16px;
     }
 
     .stat-divider {
-        width: 40px;
+        width: 60px;
         height: 1px;
     }
 
     .hero-actions {
         flex-direction: column;
         align-items: center;
+        width: 100%;
+    }
+
+    .hero-actions .btn {
+        max-width: 100%;
     }
 
     .btn-lg {
-        padding: 16px 32px;
-        font-size: 14px;
+        padding: 14px 24px;
+        font-size: 15px;
     }
 
     .section-title {
@@ -1621,19 +2172,59 @@ ul {
     }
 
     .badges-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .badge-item:last-child {
+        max-width: 100%;
+    }
+
+    .pain-card {
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+    }
+
+    .pain-icon {
+        margin-bottom: 16px;
     }
 
     .pricing-card {
-        padding: 24px 20px;
+        padding: 24px 16px;
     }
 
     .price-new {
-        font-size: 28px;
+        font-size: 26px;
     }
 
     .order-form-card {
-        padding: 28px 20px;
+        padding: 24px 16px;
+    }
+
+    /* Survey */
+    .survey-form-card {
+        padding: 28px 16px;
+    }
+
+    .survey-form-group > label,
+    .survey-group-label {
+        font-size: 14px;
+    }
+
+    .survey-radio-text {
+        font-size: 14px;
+    }
+
+    .survey-label-number {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+
+    .survey-submit-btn {
+        font-size: 14px;
+        padding: 16px 20px;
     }
 }
 

@@ -1,0 +1,5 @@
+# ChamCham waitlist worker (run every 5 minutes)
+*/5 * * * * /usr/local/bin/php /path/to/project/waitlist_email_worker.php >> /path/to/project/logs/waitlist_worker.log 2>&1
+
+# Optional smoke check endpoint (if you expose a health URL)
+# */10 * * * * curl -fsS https://your-domain.com/healthz >/dev/null || echo "health check failed" >> /path/to/project/logs/cron_health.log

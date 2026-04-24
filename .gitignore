@@ -3,3 +3,16 @@ tiktok_cookies.json
 __pycache__/
 *.pyc
 node_modules/
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+resend_config.txt
+brain.db
+brain.db-shm
+brain.db-wal
+*.sqlite
+*.sqlite3
+*.log
+*.zip
